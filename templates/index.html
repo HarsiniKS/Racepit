@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Race Pit — AI-Powered Race Strategy Platform</title>
+  <meta name="description" content="AI-Powered Race Strategy and Pit Stop Management System for motorsport teams." />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <nav id="sidebar" class="sidebar">
+    <div class="sidebar-brand">
+      <i class="fas fa-flag-checkered brand-icon"></i>
+      <div>
+        <span class="brand-sub">AI-POWERED</span>
+        <h1 class="brand-name">RACE PIT</h1>
+      </div>
+    </div>
+    <ul class="sidebar-nav">
+      <li class="nav-item active" data-page="dashboard"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></li>
+      <li class="nav-item" data-page="garage"><i class="fas fa-car"></i><span>Car Management</span></li>
+      <li class="nav-item" data-page="tyres"><i class="fas fa-circle-notch"></i><span>Tyre Management</span></li>
+      <li class="nav-item" data-page="weather"><i class="fas fa-cloud-rain"></i><span>Weather & Track</span></li>
+      <li class="nav-item" data-page="pitlane"><i class="fas fa-road"></i><span>Pit Lane Traffic</span></li>
+      <li class="nav-item" data-page="crew"><i class="fas fa-users-cog"></i><span>Pit Crew Stats</span></li>
+      <li class="nav-item" data-page="strategy"><i class="fas fa-chess"></i><span>Strategy Simulator</span></li>
+      <li class="nav-item" data-page="whatif"><i class="fas fa-flask"></i><span>What-If Analysis</span></li>
+      <li class="nav-item" data-page="alerts"><i class="fas fa-bell"></i><span>Alerts</span><span id="alertBadge" class="badge hidden">0</span></li>
+      <li class="nav-item" data-page="timeline"><i class="fas fa-stream"></i><span>Race Timeline</span></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="sim-controls">
+        <button id="simStartBtn" class="btn-sim btn-start" title="Start Simulation"><i class="fas fa-play"></i></button>
+        <button id="simPauseBtn" class="btn-sim btn-pause" title="Pause" disabled><i class="fas fa-pause"></i></button>
+        <button id="simResetBtn" class="btn-sim btn-reset" title="Reset"><i class="fas fa-redo"></i></button>
+        <select id="simSpeed" class="speed-select">
+          <option value="2000">1x</option>
+          <option value="1000" selected>2x</option>
+          <option value="500">4x</option>
+          <option value="200">10x</option>
+        </select>
+      </div>
+      <div class="sim-status">
+        <span id="simStatusText" class="status-dot offline">SIMULATION IDLE</span>
+        <span id="simLapCounter" class="lap-counter">Lap 0 / 50</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main content area -->
+  <main id="mainContent" class="main-content">
+
+    <!-- ==================== DASHBOARD PAGE ==================== -->
+    <section id="page-dashboard" class="page active">
+      <div class="page-header">
+        <h2><i class="fas fa-tachometer-alt"></i> Live Race Dashboard</h2>
+        <span class="badge-sim">SIMULATED DATA</span>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon"><i class="fas fa-stopwatch"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Current Lap</span>
+            <strong id="dashCurrentLap" class="stat-value">0</strong>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0,255,136,0.15); color: var(--green);"><i class="fas fa-trophy"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Leader</span>
+            <strong id="dashLeader" class="stat-value">—</strong>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(255,184,0,0.15); color: var(--yellow);"><i class="fas fa-cloud-sun"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Weather</span>
+            <strong id="dashWeather" class="stat-value">Dry</strong>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(255,42,42,0.15); color: var(--red);"><i class="fas fa-exclamation-triangle"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Active Alerts</span>
+            <strong id="dashAlertCount" class="stat-value">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Circuit & Pit Line Animation Widget -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+          <h3><i class="fas fa-flag-checkered"></i> Live Circuit & Pit Entry Tracker</h3>
+          <span class="badge-sim">REAL-TIME TELEMETRY & PIT LINE ANIMATION</span>
+        </div>
+        <div style="position:relative;width:100%;height:180px;background:rgba(0,0,0,0.4);border-radius:8px;overflow:hidden;border:1px solid var(--border);">
+          <canvas id="trackCanvas" width="900" height="180" style="width:100%;height:100%;display:block;"></canvas>
+        </div>
+      </div>
+
+      <div class="grid-2col">
+        <div class="card">
+          <div class="card-header"><h3><i class="fas fa-list-ol"></i> Live Standings</h3></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>P</th><th>Car</th><th>Driver</th><th>Lap</th>
+                  <th>Tyre</th><th>Wear</th><th>Fuel</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="dashStandingsBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3><i class="fas fa-chart-line"></i> Tyre Wear Overview</h3></div>
+          <canvas id="dashWearChart" height="280"></canvas>
+        </div>
+      </div>
+
+      <div class="grid-2col" style="margin-top:20px;">
+        <div class="card">
+          <div class="card-header"><h3><i class="fas fa-brain"></i> AI Pit Recommendations</h3></div>
+          <div id="dashRecommendations" class="recommendations-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3><i class="fas fa-chart-area"></i> Fuel Levels</h3></div>
+          <canvas id="dashFuelChart" height="280"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== CAR MANAGEMENT PAGE ==================== -->
+    <section id="page-garage" class="page">
+      <div class="page-header">
+        <h2><i class="fas fa-car"></i> Car & Driver Management</h2>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3><i class="fas fa-plus-circle"></i> Add New Car</h3></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Car Number</label>
+            <input id="addCarNum" type="text" placeholder="e.g. 44" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Driver Name</label>
+            <input id="addCarDriver" type="text" placeholder="e.g. Lewis Hamilton" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Fuel Capacity (L)</label>
+            <input id="addCarFuel" type="number" value="110" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Base Lap Time (s)</label>
+            <input id="addCarLap" type="number" value="90" class="input" />
+          </div>
+          <button id="addCarBtn" class="btn-primary"><i class="fas fa-plus"></i> Add Car</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px;">
+        <div class="card-header"><h3><i class="fas fa-warehouse"></i> Fleet</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Car No.</th><th>Driver</th><th>Fuel Cap.</th><th>Lap Time</th><th>360° View</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="garageTableBody"></tbody>
+          </table>
+        </div>
+        <p id="garageEmpty" class="empty-state hidden"><i class="fas fa-car-side"></i> No cars in the fleet. Add a car above to get started.</p>
+      </div>
+    </section>
+
+    <!-- ==================== TYRE MANAGEMENT PAGE ==================== -->
+    <section id="page-tyres" class="page">
+      <div class="page-header">
+        <h2><i class="fas fa-circle-notch"></i> Tyre Management</h2>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3><i class="fas fa-exchange-alt"></i> Change Tyres</h3></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Select Car</label>
+            <select id="tyreCarSelect" class="input"></select>
+          </div>
+          <div class="form-group">
+            <label>New Tyre Compound</label>
+            <select id="tyreCompoundSelect" class="input">
+              <option value="soft">Soft (Red)</option>
+              <option value="medium" selected>Medium (Yellow)</option>
+              <option value="hard">Hard (White)</option>
+              <option value="intermediate">Intermediate (Green)</option>
+              <option value="wet">Wet (Blue)</option>
+            </select>
+          </div>
+          <button id="changeTyreBtn" class="btn-primary"><i class="fas fa-sync"></i> Confirm Tyre Change</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px;">
+        <div class="card-header"><h3><i class="fas fa-history"></i> Tyre Change History</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Lap</th><th>Car</th><th>Old Tyre</th><th>New Tyre</th><th>Reason</th></tr>
+            </thead>
+            <tbody id="tyreHistoryBody"></tbody>
+          </table>
+        </div>
+        <p id="tyreHistoryEmpty" class="empty-state"><i class="fas fa-circle-notch"></i> No tyre changes recorded yet.</p>
+      </div>
+      <div class="card" style="margin-top:20px;">
+        <div class="card-header"><h3><i class="fas fa-chart-bar"></i> Predictive Tyre Wear</h3></div>
+        <canvas id="tyreWearPredChart" height="300"></canvas>
+      </div>
+    </section>
+
+    <!-- ==================== WEATHER PAGE ==================== -->
+    <section id="page-weather" class="page">
+      <div class="page-header">
+        <h2><i class="fas fa-cloud-rain"></i> Weather & Track Conditions</h2>
+      </div>
+      <div class="grid-2col">
+        <div class="card">
+          <div class="card-header"><h3><i class="fas fa-sliders-h"></i> Set Weather</h3></div>
+          <div class="form-col">
+            <div class="form-group">
+              <label>Weather Condition</label>
+              <select id="weatherCondition" class="input">
+                <option value="dry">Dry</option>
+                <option value="light_rain">Light Rain</option>
+                <option value="heavy_rain">Heavy Rain</option>
+                <option value="changing">Changing Weather</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Track Temperature (°C)</label>
+              <input id="weatherTrackTemp" type="range" min="10" max="55" value="30" class="slider" />
+              <span id="weatherTrackTempVal" class="slider-val">30°C</span>
+            </div>
+            <div class="form-group">
+              <label>Track Surface</label>
+              <select id="weatherSurface" class="input">
+                <option value="optimal">Optimal Grip</option>
+                <option value="green">Green / Low Grip</option>
+                <option value="dusty">Dusty</option>
+                <option value="damp">Damp</option>
+                <option value="wet">Standing Water</option>
+              </select>
+            </div>
+            <button id="applyWeatherBtn" class="btn-primary" style="margin-top:8px;"><i class="fas fa-cloud-sun-rain"></i> Apply Weather</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3><i class="fas fa-info-circle"></i> Current Conditions & Recommendation</h3></div>
+          <div id="weatherInfo" class="info-panel">
+            <div class="info-row"><span class="info-label">Weather:</span><span id="wxCurrent" class="info-value">Dry</span></div>
+            <div class="info-row"><span class="info-label">Track Temp:</span><span id="wxTemp" class="info-value">30°C</span></div>
+            <div class="info-row"><span class="info-label">Surface:</span><span id="wxSurface" class="info-value">Optimal Grip</span></div>
+            <hr class="divider" />
+            <div class="info-row"><span class="info-label">Recommended Tyre:</span><span id="wxRecTyre" class="info-value tyre-badge medium">Medium</span></div>
+            <div class="info-row"><span class="info-label">Reason:</span><span id="wxReason" class="info-value">Dry conditions favor medium compound for balanced performance.</span></div>
+            <div class="info-row"><span class="info-label">Risk:</span><span id="wxRisk" class="info-value">Low — no weather-related risk.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== PIT LANE TRAFFIC PAGE ==================== -->
+    <section id="page-pitlane" class="page">
+      <div class="page-header">
+        <h2><i class="fas fa-road"></i> Pit Lane Traffic Prediction</h2>
+        <span class="badge-sim">ESTIMATES BASED ON SIMULATION</span>
+      </div>
+      <div class="grid-3col">
+        <div class="stat-card mini">
+          <span class="stat-label">Pit Occupancy</span>
+          <strong id="pitOccupancy" class="stat-value">0 / 3</strong>
+        </div>
+        <div class="stat-card mini">
+          <span class="stat-label">Traffic Risk</span>
+          <strong id="pitTrafficRisk" class="stat-value risk-low">LOW</strong>
+        </div>
+        <div class="stat-card mini">
+          <span class="stat-label">Est. Pit Delay</span>
+          <strong id="pitDelay" class="stat-value">0.0s</strong>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px;">
+        <div class="card-header"><h3><i class="fas fa-traffic-light"></i> Cars Near Pit Entry</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Car</th><th>Driver</th><th>Needs Pit</th><th>Window</th><th>Conflict?</th></tr></thead>
+            <tbody id="pitTrafficBody"></tbody>
+          </table>
+        </div>
+        <p id="pitTrafficEmpty" class="empty-state"><i class="fas fa-road"></i> No cars approaching pit lane.</p>
+      </div>
+    </section>
+
+    <!-- ==================== PIT CREW STATS PAGE ==================== -->
+    <section id="page-crew" class="page">
+      <div class="page-header">
+        <h2><i class="fas fa-users-cog"></i> Pit Crew Performance</h2>
+      </div>
+      <div class="grid-3col">
+        <div class="stat-card mini">
+          <span class="stat-label">Fastest Stop</span>
+          <strong id="crewFastest" class="stat-value" style="color:var(--green);">—</strong>
+        </div>
+        <div class="stat-card mini">
+          <span class="stat-label">Slowest Stop</span>
+          <strong id="crewSlowest" class="stat-value" style="color:var(--red);">—</strong>
+        </div>
+        <div class="stat-card mini">
+          <span class="stat-label">Average</span>
+          <strong id="crewAverage" class="stat-value">—</strong>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px;">
+        <div class="card-header"><h3><i class="fas fa-clipboard-list"></i> Pit Stop Log</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Car</th><th>Lap</th><th>Duration</th><th>Old Tyre</th><th>New Tyre</th><th>Status</th></tr></thead>
+            <tbody id="crewLogBody"></tbody>
+          </table>
+        </div>
+        <p id="crewLogEmpty" class="empty-state"><i class="fas fa-users-cog"></i> No pit stops recorded yet.</p>
+      </div>
+      <div class="card" style="margin-top:20px;">
+        <div class="card-header"><h3><i class="fas fa-chart-bar"></i> Pit Stop Duration Trend</h3></div>
+        <canvas id="crewTrendChart" height="280"></canvas>
+      </div>
+    </section>
+
+    <!-- ==================== STRATEGY SIMULATOR PAGE ==================== -->
+    <section id="page-strategy" class="page">
+      <div class="page-header">
+        <h2><i class="fas fa-chess"></i> Race Strategy Comparison</h2>
+        <span class="badge-sim">ESTIMATED OUTCOMES</span>
+      </div>
+      <div class="grid-2col">
+        <div class="card">
+          <div class="card-header"><h3 style="color:var(--blue);">Strategy A</h3></div>
+          <div class="form-col">
+            <div class="form-group"><label>Total Laps</label><input id="stratALaps" type="number" value="50" class="input" /></div>
+            <div class="form-group"><label>Pit Stops</label><input id="stratAStops" type="number" value="2" class="input" /></div>
+            <div class="form-group"><label>Tyre Sequence</label><input id="stratATyres" type="text" value="soft,medium,hard" class="input" placeholder="e.g. soft,medium,hard" /></div>
+            <div class="form-group"><label>Avg Pit Duration (s)</label><input id="stratADuration" type="number" value="24" class="input" /></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3 style="color:var(--red);">Strategy B</h3></div>
+          <div class="form-col">
+            <div class="form-group"><label>Total Laps</label><input id="stratBLaps" type="number" value="50" class="input" /></div>
+            <div class="form-group"><label>Pit Stops</label><input id="stratBStops" type="number" value="1" class="input" /></div>
+            <div class="form-group"><label>Tyre Sequence</label><input id="stratBTyres" type="text" value="medium,hard" class="input" placeholder="e.g. medium,hard" /></div>
+            <div class="form-group"><label>Avg Pit Duration (s)</label><input id="stratBDuration" type="number" value="24" class="input" /></div>
+          </div>
+        </div>
+      </div>
+      <button id="compareStrategiesBtn" class="btn-primary" style="margin-top:16px;width:100%;"><i class="fas fa-balance-scale"></i> COMPARE STRATEGIES</button>
+      <div id="strategyResult" class="card" style="margin-top:20px; display:none;">
+        <div class="card-header"><h3><i class="fas fa-poll"></i> Comparison Results</h3></div>
+        <div id="strategyComparison" class="grid-2col"></div>
+        <canvas id="strategyCompareChart" height="250" style="margin-top:16px;"></canvas>
+      </div>
+    </section>
+
+    <!-- ==================== WHAT-IF PAGE ==================== -->
+    <section id="page-whatif" class="page">
+      <div class="page-header">
+        <h2><i class="fas fa-flask"></i> What-If Analysis</h2>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3><i class="fas fa-sliders-h"></i> Adjust Parameters</h3></div>
+        <div class="form-row">
+          <div class="form-group"><label>Race Laps</label><input id="wiLaps" type="number" value="50" class="input" /></div>
+          <div class="form-group"><label>Weather At Lap</label><input id="wiWeatherLap" type="number" value="12" class="input" /></div>
+          <div class="form-group">
+            <label>Weather Type</label>
+            <select id="wiWeatherType" class="input">
+              <option value="dry">Dry</option><option value="mixed">Mixed</option><option value="rain" selected>Rain</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Grip</label><input id="wiGrip" type="number" step="0.01" value="0.84" class="input" /></div>
+          <div class="form-group"><label>Rain Penalty</label><input id="wiPenalty" type="number" step="0.01" value="0.1" class="input" /></div>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:12px;">
+          <button id="wiRunBtn" class="btn-primary"><i class="fas fa-play"></i> Run Scenario</button>
+          <button id="wiResetBtn" class="btn-secondary"><i class="fas fa-undo"></i> Reset Defaults</button>
+        </div>
+      </div>
+      <div id="wiResults" class="card" style="margin-top:20px; display:none;">
+        <div class="card-header"><h3><i class="fas fa-chart-pie"></i> Scenario Results</h3></div>
+        <div class="grid-2col">
+          <div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>P</th><th>Car</th><th>Time</th><th>Stops</th><th>Tyre</th></tr></thead>
+                <tbody id="wiResultsBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <canvas id="wiChart" height="280"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== ALERTS PAGE ==================== -->
+    <section id="page-alerts" class="page">
+      <div class="page-header">
+        <h2><i class="fas fa-bell"></i> Emergency Alerts & Notifications</h2>
+        <div>
+          <button id="triggerAlertBtn" class="btn-secondary" style="margin-right:8px;"><i class="fas fa-bolt"></i> Simulate Alert</button>
+          <button id="clearAlertsBtn" class="btn-secondary"><i class="fas fa-check-double"></i> Acknowledge All</button>
+        </div>
+      </div>
+      <div id="alertsList" class="alerts-list"></div>
+      <p id="alertsEmpty" class="empty-state"><i class="fas fa-bell-slash"></i> No alerts. All systems nominal.</p>
+    </section>
+
+    <!-- ==================== TIMELINE PAGE ==================== -->
+    <section id="page-timeline" class="page">
+      <div class="page-header">
+        <h2><i class="fas fa-stream"></i> Race Timeline</h2>
+        <button id="exportCsvBtn" class="btn-secondary"><i class="fas fa-download"></i> Export CSV</button>
+      </div>
+      <div id="timelineList" class="timeline-list"></div>
+      <p id="timelineEmpty" class="empty-state"><i class="fas fa-stream"></i> Timeline is empty. Start a simulation to see events.</p>
+    </section>
+
+  </main>
+
+  <!-- ====== NEW 360° GLOBE-STYLE VIEWER MODAL ====== -->
+  <div id="car360Modal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box modal-wide">
+      <button class="modal-close" onclick="closeCarViewer()"><i class="fas fa-times"></i></button>
+
+      <div class="modal-header">
+        <i class="fas fa-car" style="color:var(--blue);font-size:1.8rem;"></i>
+        <div>
+          <h3 id="viewerCarTitle">Car #—</h3>
+          <span id="viewerCarDriver" style="color:var(--text-muted);font-size:0.85rem;">Driver</span>
+        </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+          <span class="badge-sim" style="animation:none;">🖱️ DRAG / TOUCH TO ROTATE</span>
+          <span id="viewerAngle" style="font-family:var(--mono);color:var(--blue);font-size:0.85rem;min-width:40px;">0°</span>
+        </div>
+      </div>
+
+      <!-- Globe drag stage -->
+      <div id="globeStage" class="globe-stage">
+        <div id="carSphere" class="car-sphere">
+          <img id="globeCarImg" class="globe-car-img" src="/static/img/car360/front.png" alt="Car" />
+        </div>
+        <div class="globe-floor"></div>
+        <div class="globe-overlay-label" id="globeLabel">FRONT VIEW</div>
+        <div class="globe-drag-hint"><i class="fas fa-hand-point-up"></i> Drag or swipe to spin</div>
+      </div>
+
+      <!-- Snap tabs -->
+      <div class="view-tabs" style="margin-top:14px;">
+        <button class="view-tab active" id="snapFront"   onclick="snapToView(0,'FRONT VIEW','front')"><i class="fas fa-arrow-up"></i> Front</button>
+        <button class="view-tab"        id="snapRear"    onclick="snapToView(180,'REAR VIEW','rear')"><i class="fas fa-arrow-down"></i> Rear</button>
+        <button class="view-tab"        id="snapTop"     onclick="snapToView(90,'TOP VIEW','top')"><i class="fas fa-eye"></i> Top</button>
+        <button class="view-tab"        id="snapCockpit" onclick="snapToView(270,'COCKPIT VIEW','cockpit')"><i class="fas fa-steering-wheel"></i> Cockpit</button>
+      </div>
+
+      <!-- Feature tip banner -->
+      <div class="feature-tip-banner">
+        <div class="tip-icon"><i class="fas fa-lightbulb"></i></div>
+        <div class="tip-content">
+          <span class="tip-badge">FEATURE TIP</span>
+          <p id="featureTipText" class="tip-text-p"></p>
+        </div>
+        <div class="tip-nav">
+          <button onclick="prevTip()" class="tip-btn"><i class="fas fa-chevron-left"></i></button>
+          <span id="tipCounter" style="font-size:0.75rem;color:var(--text-muted);font-family:var(--mono);">1/8</span>
+          <button onclick="nextTip()" class="tip-btn"><i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
+
+      <!-- Car stats strip -->
+      <div class="car-stats-strip">
+        <div class="car-stat"><span class="cs-label">Tyre</span><span id="vs-tyre" class="cs-val tyre-badge medium">Medium</span></div>
+        <div class="car-stat"><span class="cs-label">Wear</span><span id="vs-wear" class="cs-val">0%</span></div>
+        <div class="car-stat"><span class="cs-label">Fuel</span><span id="vs-fuel" class="cs-val">110L</span></div>
+        <div class="car-stat"><span class="cs-label">Lap</span><span id="vs-lap" class="cs-val">0</span></div>
+        <div class="car-stat"><span class="cs-label">Pos.</span><span id="vs-pos" class="cs-val">P—</span></div>
+        <div class="car-stat"><span class="cs-label">Status</span><span id="vs-status" class="cs-val" style="color:var(--green);">Parked</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
